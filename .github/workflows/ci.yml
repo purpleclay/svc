@@ -75,9 +75,6 @@ jobs:
       - name: Test
         run: task test
 
-      - name: Build
-        run: task build
-
       # All static checks from this point should run on linux as it is the
       # fastest platform
 
