@@ -28,30 +28,50 @@ import (
 	"syscall"
 )
 
-// Process ...
+// Process is simply a program (or executable) that is to be managed by
+// a service manager within the given OS.
 type Process interface {
+	// Run provides an entry point for a program that is executed upon
+	// startup by the service manager. Any error raised, will result in
+	// the process terminating and the service manager handling it in
+	// accordance with the service definition.
+	//
+	// A process entry point doesn't need to be blocking operation, as
+	// [svc.Run] will automatically wrap this process within a blocking
+	// signal handling loop.
 	Run() error
+
+	// Interrupt is called when either a service manager attempts to stop
+	// the running process, or the process is intentionally killed by a user.
+	// Any process tidying should be carried out here, before the service
+	// manager responds.
 	Interrupt() error
 }
 
-// Service ...
+// Service is a process that is designed to run in the background without any
+// direct user interaction. Once installed, a process is managed through a
+// service manager provided by the given OS.
 type Service struct {
 	proc Process
 	errs chan error
 }
 
-// New ...
+// New creates a new service for the given process.
 func New(proc Process) *Service {
 	return &Service{
 		proc: proc,
 	}
 }
 
-// Run ...
+// Run initialises the service and executes the process before blocking
+// and waiting for signals to be raised by the service manager.
 func (s *Service) Run() error {
 	sig := make(chan os.Signal, 1)
 	s.errs = make(chan error)
 
+	// Handle both SIGINT (interrupt) and SIGTERM (terminate) signals that will
+	// be raised by either a service manager or from a user intentionally killing
+	// the process
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
 	defer func() {

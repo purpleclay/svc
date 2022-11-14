@@ -20,5 +20,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// package svc ...
+// Package svc provides a simple library for converting any program into a
+// service within a given operating system.
 package svc
