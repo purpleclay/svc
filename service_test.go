@@ -30,6 +30,7 @@ import (
 
 	"github.com/purpleclay/svc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type process struct {
@@ -54,26 +55,31 @@ func TestServiceRunProcessError(t *testing.T) {
 	proc := &process{
 		errRun: errors.New("process run error"),
 	}
-	service := svc.New(proc)
+	service, err := svc.New(proc)
+	require.NoError(t, err)
 
-	err := service.Run()
+	err = service.Run()
 	assert.EqualError(t, err, "process run error")
 }
 
 func TestServiceRunInterrupt(t *testing.T) {
-	service := svc.New(&process{})
-	raiseSignal(t, 200*time.Millisecond, syscall.SIGINT)
-	err := service.Run()
+	service, err := svc.New(&process{})
+	require.NoError(t, err)
 
-	assert.Nil(t, err)
+	raiseSignal(t, 200*time.Millisecond, syscall.SIGINT)
+	err = service.Run()
+
+	assert.NoError(t, err)
 }
 
 func TestServiceRunTerminate(t *testing.T) {
-	service := svc.New(&process{})
-	raiseSignal(t, 200*time.Millisecond, syscall.SIGTERM)
-	err := service.Run()
+	service, err := svc.New(&process{})
+	require.NoError(t, err)
 
-	assert.Nil(t, err)
+	raiseSignal(t, 200*time.Millisecond, syscall.SIGTERM)
+	err = service.Run()
+
+	assert.NoError(t, err)
 }
 
 func raiseSignal(t *testing.T, after time.Duration, sig syscall.Signal) {
@@ -91,9 +97,11 @@ func TestServiceRunInterruptError(t *testing.T) {
 	proc := &process{
 		errInterrupt: errors.New("process interrupt error"),
 	}
-	service := svc.New(proc)
+	service, err := svc.New(proc)
+	require.NoError(t, err)
+
 	raiseSignal(t, 200*time.Millisecond, syscall.SIGINT)
-	err := service.Run()
+	err = service.Run()
 
 	assert.EqualError(t, err, "process interrupt error")
 }

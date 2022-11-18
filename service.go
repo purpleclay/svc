@@ -23,6 +23,7 @@ SOFTWARE.
 package svc
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -48,26 +49,63 @@ type Process interface {
 	Interrupt() error
 }
 
+// Captures the parsed executables, broken into exec, full path and
+// its arguments. Some service managers support the execution of multiple
+// processes (or executables)
+type executable struct {
+	exec      string
+	path      string
+	arguments []string
+}
+
 // Service is a process that is designed to run in the background without any
 // direct user interaction. Once installed, a process is managed through a
 // service manager provided by the given OS.
 type Service struct {
 	proc Process
 	errs chan error
+
+	name        string
+	description string
+	execs       []executable
 }
 
 // New creates a new service for the given process.
-func New(proc Process) *Service {
-	return &Service{
+func New(proc Process, opts ...ServiceOption) (*Service, error) {
+	s := &Service{
 		proc: proc,
+		errs: make(chan error),
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	// Ensure mandatory properties are set to ensure a valid service definition file is built
+	if len(s.execs) == 0 {
+		execPath, err := os.Executable()
+		if err != nil {
+			return nil, err
+		}
+
+		s.execs = []executable{buildExecPath(execPath)}
+	}
+
+	if s.name == "" {
+		s.name = s.execs[0].exec
+	}
+
+	if s.description == "" {
+		s.description = fmt.Sprintf("Process %s wrapped using the tiny svc library by Purple Clay", s.name)
+	}
+
+	return s, nil
 }
 
 // Run initialises the service and executes the process before blocking
 // and waiting for signals to be raised by the service manager.
 func (s *Service) Run() error {
 	sig := make(chan os.Signal, 1)
-	s.errs = make(chan error)
 
 	// Handle both SIGINT (interrupt) and SIGTERM (terminate) signals that will
 	// be raised by either a service manager or from a user intentionally killing
